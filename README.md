@@ -1,35 +1,112 @@
-# Solar Thermal E-Harvesting Dashboard
+<div align="center">
 
-A real-time, professional-grade monitoring dashboard built for Solar Thermal Harvesting Systems. Designed to mimic the clean aesthetics of Microsoft Power BI, this single-page dashboard connects directly to Firebase Realtime Database to stream and visualize live thermal and flow data.
+<h1>☀️ Solar Thermal E-Harvesting Dashboard</h1>
 
-## Features
+<p><strong>A real-time, Power BI-style monitoring dashboard for Solar Thermal Energy Harvesting Systems</strong></p>
 
-- **Live Sensor Stream**: Automatically fetches and visualizes real-time temperature (T1-T4) and fluid flow (F1-F2) metrics.
-- **Relay Controls**: Monitors operational states of system components like the Power Supply, Solenoid Valve, Pump, and Artificial Lamp.
-- **Interactive UI**:
-  - Live animated telemetry dots and operational timestamps.
-  - Interactive Chart.js integration featuring professional, high-contrast layouts.
-  - Expanding live data log tracking historical telemetry.
-- **CSV Export**: Conveniently download the active session's data logs into a timestamped `.csv` file using zero server dependencies.
-- **Demo Mode**: Built-in visualizer fallback to simulate hardware data generation directly in the client if physical edge devices are disconnected.
+[![MIT License](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Firebase](https://img.shields.io/badge/Firebase-Realtime%20DB-orange?logo=firebase)](https://firebase.google.com/)
+[![Chart.js](https://img.shields.io/badge/Chart.js-v4.4.1-ff6384?logo=chartdotjs)](https://www.chartjs.org/)
+[![Status](https://img.shields.io/badge/Status-Live-brightgreen)](#)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/Mradulmanimishra/Solar-Thermal-E-Harvesting)
 
-## Project Structure
+</div>
 
-- `index.html`: The core frontend single-page application.
-- `solar_powerbi_data.xlsx`: Reference historic database tied to the mechanical deployment.
+---
 
-## Setup & Execution
+## 📌 Overview
 
-Since the dashboard leverages client-side JavaScript to directly bind with the Firebase backend stream, there are zero build steps, transpilers, or package managers required.
+This project provides a **live telemetry dashboard** for a Solar Thermal Harvesting research system. It streams sensor data directly from a Firebase Realtime Database and renders it in a sleek, dark-themed interface inspired by Microsoft Power BI — with **zero backend setup required**.
 
-1. Clone or download this repository locally.
-2. Directly execute/open `index.html` in any modern web browser (Edge, Chrome, Firefox).
-3. The dashboard executes natively and autonomously connects to the Firebase topology at endpoint `solar-thermal-e-harvesting-default-rtdb`.
+---
 
-## Technology Stack
-- **HTML/CSS/JS**: Vanilla frontend implementation for maximum performance portability and execution speed.
-- **Firebase SDK**: Web bindings for instant telemetry database connection events.
-- **Chart.js**: Client-side structural graphing capabilities for line datasets.
+## 🖥️ Features
 
-## License
-MIT License
+| Feature | Description |
+|---|---|
+| 🔴 **Live Firebase Stream** | Auto-connects to Firebase on load; no manual configuration needed |
+| 🌡️ **4 Temperature Sensors** | T1 (Storage), T2 (Inlet), T3 (Absorber Plate), T4 (Outlet) |
+| 💧 **2 Flow Sensors** | F1 (Inlet), F2 (Outlet) in L/min |
+| ⚡ **Relay Control Monitor** | Real-time state display for Power Supply, Solenoid Valve, Pump & Lamp |
+| 📈 **Live Charts** | Chart.js line graphs with 60-point rolling window |
+| 📋 **Data Log** | Up to 10,000 timestamped records in a scrollable table |
+| 📥 **CSV Export** | One-click download of the full session log |
+| 🎭 **Demo Mode** | Simulated data if hardware is offline |
+
+---
+
+## 🏗️ Project Structure
+
+```
+Solar-Thermal-E-Harvesting/
+├── index.html               # Main application shell (HTML structure only)
+├── assets/
+│   ├── css/
+│   │   └── style.css        # All UI styling & CSS custom properties
+│   └── js/
+│       └── app.js           # Firebase, Chart.js logic & data handlers
+├── solar_powerbi_data.xlsx  # Reference dataset from physical deployment
+└── README.md
+```
+
+---
+
+## 🔌 Firebase Data Schema
+
+The dashboard reads from the following Realtime Database path:
+
+```json
+/solar_thermal/
+  ├── temperature/
+  │   ├── t1      → Storage Temp (°C)
+  │   ├── t2      → Inlet Temp (°C)
+  │   ├── t3      → Absorber Plate Temp (°C)
+  │   └── t4      → Outlet Temp (°C)
+  ├── flow/
+  │   ├── flow1_Lmin  → Inlet Flow Rate (L/min)
+  │   └── flow2_Lmin  → Outlet Flow Rate (L/min)
+  └── relays/
+      ├── relay1_state  → Power Supply
+      ├── relay2_state  → Solenoid Valve
+      ├── relay3_state  → Pump
+      └── relay4_state  → Artificial Lamp
+```
+
+---
+
+## 🚀 Getting Started
+
+### Option 1 — Open Locally (No Setup Required)
+
+```bash
+git clone https://github.com/Mradulmanimishra/Solar-Thermal-E-Harvesting.git
+cd Solar-Thermal-E-Harvesting
+# Open index.html in your browser
+```
+
+### Option 2 — Deploy to Vercel
+
+Click the button below for instant cloud deployment:
+
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/Mradulmanimishra/Solar-Thermal-E-Harvesting)
+
+---
+
+## 🛠️ Tech Stack
+
+- **HTML5 / CSS3 / Vanilla JS** — Zero-build frontend
+- **Firebase JS SDK v9** — Real-time database streaming
+- **Chart.js v4.4.1** — Interactive telemetry charts
+- **Google Fonts (Segoe UI)** — Professional typography
+
+---
+
+## 📄 License
+
+This project is licensed under the **MIT License** — see the [LICENSE](LICENSE) file for details.
+
+---
+
+<div align="center">
+  Made with ❤️ for Solar Energy Research · <a href="https://github.com/Mradulmanimishra">@Mradulmanimishra</a>
+</div>
