@@ -15,7 +15,7 @@ A real-time, professional-grade monitoring dashboard built for Solar Thermal Har
 
 ## Project Structure
 
-- `solar_powerbi_dashboard.html`: The core frontend single-page application.
+- `index.html`: The core frontend single-page application.
 - `solar_powerbi_data.xlsx`: Reference historic database tied to the mechanical deployment.
 
 ## Setup & Execution
@@ -23,7 +23,7 @@ A real-time, professional-grade monitoring dashboard built for Solar Thermal Har
 Since the dashboard leverages client-side JavaScript to directly bind with the Firebase backend stream, there are zero build steps, transpilers, or package managers required.
 
 1. Clone or download this repository locally.
-2. Directly execute/open `solar_powerbi_dashboard.html` in any modern web browser (Edge, Chrome, Firefox).
+2. Directly execute/open `index.html` in any modern web browser (Edge, Chrome, Firefox).
 3. The dashboard executes natively and autonomously connects to the Firebase topology at endpoint `solar-thermal-e-harvesting-default-rtdb`.
 
 ## Technology Stack
