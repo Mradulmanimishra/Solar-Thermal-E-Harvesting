@@ -65,7 +65,7 @@ The dashboard reads from the following Realtime Database path:
   ├── flow/
   │   ├── flow1_Lmin  → Inlet Flow Rate (L/min)
   │   └── flow2_Lmin  → Outlet Flow Rate (L/min)
-  └── relays/
+  └── relays_actual/
       ├── relay1_state  → Power Supply
       ├── relay2_state  → Solenoid Valve
       ├── relay3_state  → Pump
