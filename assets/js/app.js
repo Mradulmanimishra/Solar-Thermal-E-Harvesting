@@ -202,7 +202,7 @@ function connectFB(){
     }, 8000);
 
     // ── Relay / Control states (dedicated listener) ────────────
-    db.ref('/solar_thermal/relays').on('value', snap=>{
+    db.ref('/solar_thermal/relays_actual').on('value', snap=>{
       const relays = snap.val() || {};
       const ctrl = {
         power_supply:   parseRelay(relays.relay1_state),
