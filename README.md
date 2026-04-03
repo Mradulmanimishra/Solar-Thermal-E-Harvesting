@@ -1,112 +1,60 @@
-<div align="center">
+# Solar Thermal Control App - Project Analysis & Setup
 
-<h1>☀️ Solar Thermal E-Harvesting Dashboard</h1>
+## Overview
+I analyzed the original files and deduced they are part of a native Android application meant to integrate with Firebase to control solar thermal relays using a 2x2 grid dashboard. 
 
-<p><strong>A real-time, Power BI-style monitoring dashboard for Solar Thermal Energy Harvesting Systems</strong></p>
+The initial state of the files was a flat directory without proper structure. I have executed the necessary processes to turn this into a standard Android repository layout that can be seamlessly opened in Android Studio.
 
-[![MIT License](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Firebase](https://img.shields.io/badge/Firebase-Realtime%20DB-orange?logo=firebase)](https://firebase.google.com/)
-[![Chart.js](https://img.shields.io/badge/Chart.js-v4.4.1-ff6384?logo=chartdotjs)](https://www.chartjs.org/)
-[![Status](https://img.shields.io/badge/Status-Live-brightgreen)](#)
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/Mradulmanimishra/Solar-Thermal-E-Harvesting)
-
-</div>
-
----
-
-## 📌 Overview
-
-This project provides a **live telemetry dashboard** for a Solar Thermal Harvesting research system. It streams sensor data directly from a Firebase Realtime Database and renders it in a sleek, dark-themed interface inspired by Microsoft Power BI — with **zero backend setup required**.
-
----
-
-## 🖥️ Features
-
-| Feature | Description |
-|---|---|
-| 🔴 **Live Firebase Stream** | Auto-connects to Firebase on load; no manual configuration needed |
-| 🌡️ **4 Temperature Sensors** | T1 (Storage), T2 (Inlet), T3 (Absorber Plate), T4 (Outlet) |
-| 💧 **2 Flow Sensors** | F1 (Inlet), F2 (Outlet) in L/min |
-| ⚡ **Relay Control Monitor** | Real-time state display for Power Supply, Solenoid Valve, Pump & Lamp |
-| 📈 **Live Charts** | Chart.js line graphs with 60-point rolling window |
-| 📋 **Data Log** | Up to 10,000 timestamped records in a scrollable table |
-| 📥 **CSV Export** | One-click download of the full session log |
-| 🎭 **Demo Mode** | Simulated data if hardware is offline |
-
----
-
-## 🏗️ Project Structure
+## What Was Executed
+The system's loose Android Code files have been arranged into standard Android project sub-directories. The structure now looks like this:
 
 ```
-Solar-Thermal-E-Harvesting/
-├── index.html               # Main application shell (HTML structure only)
-├── assets/
-│   ├── css/
-│   │   └── style.css        # All UI styling & CSS custom properties
-│   └── js/
-│       └── app.js           # Firebase, Chart.js logic & data handlers
-├── solar_powerbi_data.xlsx  # Reference dataset from physical deployment
-└── README.md
+app/
+  src/
+    main/
+      AndroidManifest.xml (Auto-generated with Internet Permission & MainActivity Registration)
+      java/
+        com/example/solarthermal/
+          MainActivity.kt
+      res/
+        layout/
+          activity_main.xml
+        values/
+          styles.xml
+        color/
+          relay_button_bg.xml
+          relay_button_text.xml
 ```
 
----
+## Dependency Review & Checklist
+Based on `build_gradle_dependencies.kt`, your project relies on **Firebase services** and **Material Components**.
 
-## 🔌 Firebase Data Schema
+To successfully compile and run the application, please execute the final checks and add the following inside your `build.gradle` configurations upon opening the project in **Android Studio**:
 
-The dashboard reads from the following Realtime Database path:
+### 1. App-level `build.gradle` Dependencies (`app/build.gradle`)
+Ensure these implementations are set up under your `dependencies { ... }` block:
+- **Firebase BOM**: `implementation platform('com.google.firebase:firebase-bom:32.7.0')`
+- **Firebase Realtime Database**: `implementation 'com.google.firebase:firebase-database-ktx'`
+- **Material Components** (Mandatory for `MaterialButton` component styles): `implementation 'com.google.android.material:material:1.11.0'`
 
-```json
-/solar_thermal/
-  ├── temperature/
-  │   ├── t1      → Storage Temp (°C)
-  │   ├── t2      → Inlet Temp (°C)
-  │   ├── t3      → Absorber Plate Temp (°C)
-  │   └── t4      → Outlet Temp (°C)
-  ├── flow/
-  │   ├── flow1_Lmin  → Inlet Flow Rate (L/min)
-  │   └── flow2_Lmin  → Outlet Flow Rate (L/min)
-  └── relays_actual/
-      ├── relay1_state  → Power Supply
-      ├── relay2_state  → Solenoid Valve
-      ├── relay3_state  → Pump
-      └── relay4_state  → Artificial Lamp
+And ensure ViewBinding is globally enabled:
+```gradle
+buildFeatures {
+    viewBinding true
+}
 ```
 
----
+### 2. Firebase Google Services Plugin
+- **Project-Level `build.gradle`**: Add `id 'com.google.gms.google-services' version '4.4.1' apply false` in `plugins {}`
+- **App-Level `build.gradle`**: Add `id 'com.google.gms.google-services'`
 
-## 🚀 Getting Started
+### 3. Missing Mandatory File: `google-services.json`
+Your project interacts with a Realtime Database containing node `'relaycmd'` and requires secure connections via Firebase.
+> [!IMPORTANT]
+> The setup is almost complete, but you haven't included the `google-services.json`. Please download this file from your Firebase Console under (Project Settings → Your Apps) and place it directly inside the `app/` folder.
 
-### Option 1 — Open Locally (No Setup Required)
-
-```bash
-git clone https://github.com/Mradulmanimishra/Solar-Thermal-E-Harvesting.git
-cd Solar-Thermal-E-Harvesting
-# Open index.html in your browser
-```
-
-### Option 2 — Deploy to Vercel
-
-Click the button below for instant cloud deployment:
-
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/Mradulmanimishra/Solar-Thermal-E-Harvesting)
-
----
-
-## 🛠️ Tech Stack
-
-- **HTML5 / CSS3 / Vanilla JS** — Zero-build frontend
-- **Firebase JS SDK v9** — Real-time database streaming
-- **Chart.js v4.4.1** — Interactive telemetry charts
-- **Google Fonts (Segoe UI)** — Professional typography
-
----
-
-## 📄 License
-
-This project is licensed under the **MIT License** — see the [LICENSE](LICENSE) file for details.
-
----
-
-<div align="center">
-  Made with ❤️ for Solar Energy Research · <a href="https://github.com/Mradulmanimishra">@Mradulmanimishra</a>
-</div>
+## Next Steps
+1. Open up **Android Studio**, and select **File -> New -> Import Project**, choosing this directory.
+2. Complete the Gradle Sync using the dependency instructions listed above.
+3. Import your downloaded `google-services.json` file into the `app/` directory.
+4. Run the project in a real device or emulator to test the Relay toggle controls.
