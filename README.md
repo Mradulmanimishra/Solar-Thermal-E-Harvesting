@@ -58,3 +58,9 @@ Your project interacts with a Realtime Database containing node `'relaycmd'` and
 2. Complete the Gradle Sync using the dependency instructions listed above.
 3. Import your downloaded `google-services.json` file into the `app/` directory.
 4. Run the project in a real device or emulator to test the Relay toggle controls.
+
+## Architecture Diagram
+
+The end-to-end data flow between Android app, Firebase Realtime Database, and ESP32 firmware is shown below:
+
+![Solar Thermal Architecture](solar_thermal_architecture.svg)
