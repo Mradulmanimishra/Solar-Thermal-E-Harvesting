@@ -160,56 +160,111 @@ function startDemo(){
 }
 
 // ── FIREBASE ──────────────────────────────────
-function connectFB(){
-  const cfg={
-    databaseURL: 'https://solar-thermal-e-harvesting-default-rtdb.firebaseio.com/'
-  };
-  try{
-    firebase.initializeApp(cfg);
-    const db=firebase.database();
-    let lastCtrl={power_supply:false,solenoid_valve:false,pump:false,artificial_lamp:false};
+//
+// ⚠️  FILL IN YOUR FIREBASE PROJECT CREDENTIALS BELOW.
+//     Find them in Firebase Console → Project Settings → Your apps → SDK setup.
+//
+const FB_CONFIG = {
+  apiKey:            'AIzaSyD-REPLACE-WITH-YOUR-API-KEY',
+  authDomain:        'solar-thermal-e-harvesting.firebaseapp.com',
+  databaseURL:       'https://solar-thermal-e-harvesting-default-rtdb.firebaseio.com/',
+  projectId:         'solar-thermal-e-harvesting',
+  storageBucket:     'solar-thermal-e-harvesting.appspot.com',
+  messagingSenderId: 'REPLACE-WITH-SENDER-ID',
+  appId:             'REPLACE-WITH-APP-ID'
+};
 
-    db.ref('/solar_thermal').on('value',snap=>{
-      const d=snap.val()||{};
-      const temp=d.temperature||{};
-      const flow=d.flow||{};
-      const relays=d.relays||{};
-      
-      const sensors={
-        T1:+temp.t1||0, T2:+temp.t2||0, T3:+temp.t3||0, T4:+temp.t4||0,
-        F1:+flow.flow1_Lmin||0, F2:+flow.flow2_Lmin||0
+// Helper: parse relay value regardless of type (bool / int 0|1 / string "0"|"1"|"true"|"false")
+function parseRelay(v){
+  if(v === null || v === undefined) return false;
+  if(typeof v === 'boolean') return v;
+  const n = parseInt(v, 10);
+  if(!isNaN(n)) return n !== 0;
+  return String(v).toLowerCase() === 'true';
+}
+
+function connectFB(){
+  try{
+    // Prevent duplicate app initialisation on hot-reload
+    const app = firebase.apps.length
+      ? firebase.app()
+      : firebase.initializeApp(FB_CONFIG);
+
+    const db = firebase.database();
+    let receivedData = false;
+
+    // ── Fallback: if no data arrives in 8 s → switch to demo ──
+    const demoTimer = setTimeout(()=>{
+      if(!receivedData){
+        console.warn('[Firebase] No data in 8 s — switching to DEMO mode.');
+        startDemo();
+      }
+    }, 8000);
+
+    // ── Relay / Control states (dedicated listener) ────────────
+    db.ref('/solar_thermal/relays').on('value', snap=>{
+      const relays = snap.val() || {};
+      const ctrl = {
+        power_supply:   parseRelay(relays.relay1_state),
+        solenoid_valve: parseRelay(relays.relay2_state),
+        pump:           parseRelay(relays.relay3_state),
+        artificial_lamp:parseRelay(relays.relay4_state)
       };
-      
-      ['T1','T2','T3','T4'].forEach(k=>setSensor(k,sensors[k],false));
-      ['F1','F2'].forEach(k=>setSensor(k,sensors[k],true));
+      setCtrl('power', ctrl.power_supply);
+      setCtrl('sol',   ctrl.solenoid_valve);
+      setCtrl('pump',  ctrl.pump);
+      setCtrl('lamp',  ctrl.artificial_lamp);
+      // Keep last ctrl state globally for log rows
+      window._lastCtrl = ctrl;
+    });
+
+    // ── Sensor data (root listener) ────────────────────────────
+    db.ref('/solar_thermal').on('value', snap=>{
+      receivedData = true;
+      clearTimeout(demoTimer);
+
+      const d    = snap.val() || {};
+      const temp = d.temperature || {};
+      const flow = d.flow        || {};
+
+      const sensors = {
+        T1: +temp.t1          || 0,
+        T2: +temp.t2          || 0,
+        T3: +temp.t3          || 0,
+        T4: +temp.t4          || 0,
+        F1: +flow.flow1_Lmin  || 0,
+        F2: +flow.flow2_Lmin  || 0
+      };
+
+      ['T1','T2','T3','T4'].forEach(k => setSensor(k, sensors[k], false));
+      ['F1','F2']          .forEach(k => setSensor(k, sensors[k], true));
       pushPoint(sensors);
 
-      lastCtrl={
-        power_supply:!!relays.relay1_state,
-        solenoid_valve:!!relays.relay2_state,
-        pump:!!relays.relay3_state,
-        artificial_lamp:!!relays.relay4_state
+      // Use the relay values already parsed by the dedicated listener
+      const ctrl = window._lastCtrl || {
+        power_supply:false, solenoid_valve:false, pump:false, artificial_lamp:false
       };
-      
-      setCtrl('power',lastCtrl.power_supply);
-      setCtrl('sol',lastCtrl.solenoid_valve);
-      setCtrl('pump',lastCtrl.pump);
-      setCtrl('lamp',lastCtrl.artificial_lamp);
-      
-      pushLog(sensors,lastCtrl);
+      pushLog(sensors, ctrl);
     });
 
-    db.ref('.info/connected').on('value',snap=>{
-      const p=document.getElementById('pill');
+    // ── Connection status pill ─────────────────────────────────
+    db.ref('.info/connected').on('value', snap=>{
+      const p   = document.getElementById('pill');
+      const txt = document.getElementById('pill-txt');
       if(snap.val()){
-        p.className='live-pill live';
-        document.getElementById('pill-txt').textContent='LIVE';
-      }else{
-        p.className='live-pill dead';
-        document.getElementById('pill-txt').textContent='DISCONNECTED';
+        p.className = 'live-pill live';
+        txt.textContent = 'LIVE';
+      } else {
+        p.className = 'live-pill dead';
+        txt.textContent = 'DISCONNECTED';
       }
     });
-  }catch(e){alert('Firebase error: '+e.message);}
+
+  } catch(e){
+    console.error('[Firebase] Init error:', e.message);
+    // Fall back to demo so the dashboard still looks alive
+    startDemo();
+  }
 }
 
 function downloadCSV() {
