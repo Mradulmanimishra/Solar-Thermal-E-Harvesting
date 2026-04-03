@@ -174,13 +174,15 @@ const FB_CONFIG = {
   appId:             'REPLACE-WITH-APP-ID'
 };
 
-// Helper: parse relay value regardless of type (bool / int 0|1 / string "0"|"1"|"true"|"false")
+// Helper: parse relay value (bool / int 0|1 / string "0"|"1"|"ON"|"OFF"|"true"|"false")
 function parseRelay(v){
   if(v === null || v === undefined) return false;
   if(typeof v === 'boolean') return v;
+  const s = String(v).toUpperCase();
+  if(s === 'ON' || s === 'TRUE' || s === '1') return true;
+  if(s === 'OFF' || s === 'FALSE' || s === '0') return false;
   const n = parseInt(v, 10);
-  if(!isNaN(n)) return n !== 0;
-  return String(v).toLowerCase() === 'true';
+  return !isNaN(n) && n !== 0;
 }
 
 function connectFB(){
@@ -201,9 +203,31 @@ function connectFB(){
       }
     }, 8000);
 
-    // ── Relay / Control states (dedicated listener) ────────────
-    db.ref('/solar_thermal/relays_actual').on('value', snap=>{
-      const relays = snap.val() || {};
+    // ── Single Root Listener ──────────────────────────────────
+    db.ref('/solar_thermal').on('value', snap=>{
+      receivedData = true;
+      clearTimeout(demoTimer);
+
+      const d      = snap.val() || {};
+      const temp   = d.temperature || {};
+      const flow   = d.flow        || {};
+      // Support both 'relays_actual' and legacy 'relays'
+      const relays = d.relays_actual || d.relays || {};
+
+      // 1. Update Sensors
+      const sensors = {
+        T1: +temp.t1          || 0,
+        T2: +temp.t2          || 0,
+        T3: +temp.t3          || 0,
+        T4: +temp.t4          || 0,
+        F1: +flow.flow1_Lmin  || 0,
+        F2: +flow.flow2_Lmin  || 0
+      };
+      ['T1','T2','T3','T4'].forEach(k => setSensor(k, sensors[k], false));
+      ['F1','F2']          .forEach(k => setSensor(k, sensors[k], true));
+      pushPoint(sensors);
+
+      // 2. Update Relays/Controls
       const ctrl = {
         power_supply:   parseRelay(relays.relay1_state),
         solenoid_valve: parseRelay(relays.relay2_state),
@@ -214,36 +238,8 @@ function connectFB(){
       setCtrl('sol',   ctrl.solenoid_valve);
       setCtrl('pump',  ctrl.pump);
       setCtrl('lamp',  ctrl.artificial_lamp);
-      // Keep last ctrl state globally for log rows
-      window._lastCtrl = ctrl;
-    });
 
-    // ── Sensor data (root listener) ────────────────────────────
-    db.ref('/solar_thermal').on('value', snap=>{
-      receivedData = true;
-      clearTimeout(demoTimer);
-
-      const d    = snap.val() || {};
-      const temp = d.temperature || {};
-      const flow = d.flow        || {};
-
-      const sensors = {
-        T1: +temp.t1          || 0,
-        T2: +temp.t2          || 0,
-        T3: +temp.t3          || 0,
-        T4: +temp.t4          || 0,
-        F1: +flow.flow1_Lmin  || 0,
-        F2: +flow.flow2_Lmin  || 0
-      };
-
-      ['T1','T2','T3','T4'].forEach(k => setSensor(k, sensors[k], false));
-      ['F1','F2']          .forEach(k => setSensor(k, sensors[k], true));
-      pushPoint(sensors);
-
-      // Use the relay values already parsed by the dedicated listener
-      const ctrl = window._lastCtrl || {
-        power_supply:false, solenoid_valve:false, pump:false, artificial_lamp:false
-      };
+      // 3. Update Logs
       pushLog(sensors, ctrl);
     });
 
