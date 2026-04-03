@@ -1,0 +1,30 @@
+{
+  "project_info": {
+    "project_number": "563848246453",
+    "firebase_url": "https://solar-thermal-e-harvesting-default-rtdb.firebaseio.com",
+    "project_id": "solar-thermal-e-harvesting",
+    "storage_bucket": "solar-thermal-e-harvesting.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:563848246453:android:ee1a270fbc286fc3a0bafc",
+        "android_client_info": {
+          "package_name": "com.example.solarthermal"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCWSE69s4-gT5C3Bq9vRrBzKSLh9yzK3Xg"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
