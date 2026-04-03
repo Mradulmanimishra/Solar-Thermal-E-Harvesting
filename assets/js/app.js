@@ -203,25 +203,34 @@ function connectFB(){
       }
     }, 8000);
 
-    // ── Single Root Listener ──────────────────────────────────
+    // ── Database Path Probe ───────────────────────────────────
+    db.ref('/').on('value', snap=>{
+      console.log('[Firebase Root Probe]', snap.val());
+    }, err => {
+      console.error('[Firebase Root Probe] Permission denied - root read blocked.', err.message);
+    });
+
+    // ── Main Listener ──────────────────────────────────
     db.ref('/solar_thermal').on('value', snap=>{
       receivedData = true;
       clearTimeout(demoTimer);
 
       const d      = snap.val() || {};
-      const temp   = d.temperature || {};
-      const flow   = d.flow        || {};
-      // Support both 'relays_actual' and legacy 'relays'
-      const relays = d.relays_actual || d.relays || {};
+      console.log('[Firebase /solar_thermal Snapshot]', d); 
+
+      // Support for different path variants
+      const temp   = d.temperature || d.Temperature || {};
+      const flow   = d.flow        || d.Flow || {};
+      const relays = d.relays_actual || d.relays_Actual || d.relays || d.Relays || {};
 
       // 1. Update Sensors
       const sensors = {
-        T1: +temp.t1          || 0,
-        T2: +temp.t2          || 0,
-        T3: +temp.t3          || 0,
-        T4: +temp.t4          || 0,
-        F1: +flow.flow1_Lmin  || 0,
-        F2: +flow.flow2_Lmin  || 0
+        T1: +temp.t1 || +temp.T1 || 0,
+        T2: +temp.t2 || +temp.T2 || 0,
+        T3: +temp.t3 || +temp.T3 || 0,
+        T4: +temp.t4 || +temp.T4 || 0,
+        F1: +flow.flow1_Lmin || +flow.flow1 || 0,
+        F2: +flow.flow2_Lmin || +flow.flow2 || 0
       };
       ['T1','T2','T3','T4'].forEach(k => setSensor(k, sensors[k], false));
       ['F1','F2']          .forEach(k => setSensor(k, sensors[k], true));
@@ -229,10 +238,10 @@ function connectFB(){
 
       // 2. Update Relays/Controls
       const ctrl = {
-        power_supply:   parseRelay(relays.relay1_state),
-        solenoid_valve: parseRelay(relays.relay2_state),
-        pump:           parseRelay(relays.relay3_state),
-        artificial_lamp:parseRelay(relays.relay4_state)
+        power_supply:   parseRelay(relays.relay1_state || relays.relay1),
+        solenoid_valve: parseRelay(relays.relay2_state || relays.relay2),
+        pump:           parseRelay(relays.relay3_state || relays.relay3),
+        artificial_lamp:parseRelay(relays.relay4_state || relays.relay4)
       };
       setCtrl('power', ctrl.power_supply);
       setCtrl('sol',   ctrl.solenoid_valve);
