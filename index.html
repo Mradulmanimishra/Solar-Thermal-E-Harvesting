@@ -10,321 +10,10 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Segoe+UI:wght@300;400;600;700&display=swap" rel="stylesheet">
 
-<style>
-/* ─── CSS VARIABLES ─────────────────────────────────────── */
-:root{
-  --pbi-bg:       #0e0e16;
-  --pbi-panel:    #16161f;
-  --pbi-border:   #2a2a3a;
-  --pbi-white:    #e8e8f0;
-  --pbi-muted:    #7a7a9a;
-
-  --t1: #f9a825;
-  --t2: #29b6f6;
-  --t3: #ef5350;
-  --t4: #66bb6a;
-  --f1: #ab47bc;
-  --f2: #26c6da;
-
-  --on:  #00e676;
-  --off: #444466;
-}
-
-/* ─── RESET ─────────────────────────────────────────────── */
-*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
-body{
-  font-family:'Segoe UI',system-ui,sans-serif;
-  background:var(--pbi-bg);
-  color:var(--pbi-white);
-  min-height:100vh;
-  overflow-x:hidden;
-}
-
-/* ─── RIBBON ─────────────────────────────────────────────── */
-.ribbon{
-  display:flex;
-  align-items:center;
-  justify-content:space-between;
-  background:linear-gradient(90deg,#1a1a2e,#16213e);
-  padding:10px 20px;
-  border-bottom:2px solid var(--pbi-border);
-  position:sticky;top:0;z-index:100;
-  box-shadow:0 2px 20px rgba(0,0,0,0.5);
-}
-.ribbon-left{display:flex;align-items:center;gap:14px;}
-.pbi-logo{
-  width:36px;height:36px;
-  background:linear-gradient(135deg,#f2c94c,#f2994a);
-  border-radius:8px;
-  display:flex;align-items:center;justify-content:center;
-  font-weight:900;font-size:18px;color:#fff;
-}
-.report-title{font-size:15px;font-weight:700;color:#fff;letter-spacing:.3px;}
-.report-sub{font-size:11px;color:var(--pbi-muted);margin-top:2px;}
-.ribbon-right{display:flex;align-items:center;gap:18px;}
-
-/* Live pill */
-.live-pill{
-  display:flex;align-items:center;gap:7px;
-  padding:5px 13px;border-radius:999px;
-  font-size:11px;font-weight:700;letter-spacing:1px;
-}
-.live-pill.live{background:rgba(0,230,118,.15);color:var(--on);border:1px solid rgba(0,230,118,.3);}
-.live-pill.demo{background:rgba(255,255,255,.05);color:#aaa;border:1px solid rgba(255,255,255,.1);}
-.dot{width:8px;height:8px;border-radius:50%;background:currentColor;}
-.live-pill.live .dot{animation:pulse 1.4s ease-in-out infinite;}
-@keyframes pulse{0%,100%{opacity:1;transform:scale(1);}50%{opacity:.4;transform:scale(.7);}}
-
-/* Clock */
-.clock-wrap{text-align:right;}
-.clock-time{font-size:18px;font-weight:700;font-variant-numeric:tabular-nums;color:#fff;}
-.clock-date{font-size:10px;color:var(--pbi-muted);margin-top:1px;}
-
-/* ─── CANVAS ─────────────────────────────────────────────── */
-.canvas{
-  display:grid;
-  grid-template-columns:220px 1fr;
-  grid-template-rows:auto 1fr auto;
-  gap:14px;
-  padding:16px;
-  max-width:1700px;
-  margin:0 auto;
-}
-
-/* ─── SENSOR ROW ─────────────────────────────────────────── */
-.sensor-row{
-  grid-column:1/-1;
-  display:grid;
-  grid-template-columns:repeat(6,1fr);
-  gap:12px;
-}
-
-/* Sensor card */
-.s-card{
-  background:var(--pbi-panel);
-  border:1px solid var(--pbi-border);
-  border-radius:14px;
-  overflow:hidden;
-  position:relative;
-  transition:transform .2s,box-shadow .2s;
-  box-shadow:0 4px 16px rgba(0,0,0,.35);
-}
-.s-card:hover{transform:translateY(-3px);box-shadow:0 8px 28px rgba(0,0,0,.5);}
-
-.s-bar{
-  height:4px;
-  background:var(--accent);
-  box-shadow:0 0 12px var(--accent);
-}
-.s-inner{
-  padding:14px 16px 16px;
-  display:flex;flex-direction:column;align-items:flex-start;gap:6px;
-}
-
-/* ── ENLARGED & HIGHLIGHTED TAG (T1 / F1 badges) ── */
-.s-tag{
-  display:inline-flex;
-  align-items:center;justify-content:center;
-  min-width:46px;
-  padding:5px 14px;
-  font-size:17px;
-  font-weight:800;
-  letter-spacing:.6px;
-  color:#fff;
-  background:var(--accent);
-  border-radius:999px;
-  box-shadow:0 0 14px var(--accent);
-  text-shadow:0 1px 4px rgba(0,0,0,.4);
-}
-
-/* ── ENLARGED & HIGHLIGHTED SENSOR NAME ── */
-.s-name{
-  display:block;
-  width:100%;
-  font-size:clamp(13px,1.1vw,16px);
-  font-weight:700;
-  line-height:1.3;
-  color:#fff;
-  background:rgba(255,255,255,.07);
-  border-left:4px solid var(--accent);
-  padding:7px 10px;
-  border-radius:8px;
-  box-shadow:inset 0 0 0 1px rgba(255,255,255,.06),
-             0 2px 8px rgba(0,0,0,.25);
-  letter-spacing:.2px;
-}
-
-/* Sensor value */
-.s-val{
-  font-size:clamp(26px,2.2vw,36px);
-  font-weight:700;
-  font-variant-numeric:tabular-nums;
-  color:#fff;
-  line-height:1;
-  margin-top:4px;
-}
-.s-unit{
-  font-size:12px;
-  font-weight:600;
-  color:var(--pbi-muted);
-  letter-spacing:.5px;
-  margin-top:-4px;
-}
-.s-delta{
-  font-size:12px;font-weight:600;
-  padding:3px 8px;border-radius:999px;
-  margin-top:4px;
-}
-.d-up{background:rgba(0,230,118,.12);color:var(--on);}
-.d-dn{background:rgba(239,83,80,.12);color:#ef5350;}
-.d-fl{background:rgba(255,255,255,.06);color:var(--pbi-muted);}
-
-/* ─── CONTROL COLUMN ─────────────────────────────────────── */
-.ctrl-col{
-  background:var(--pbi-panel);
-  border:1px solid var(--pbi-border);
-  border-radius:14px;
-  padding:16px 14px;
-  display:flex;flex-direction:column;gap:10px;
-  align-self:start;
-  box-shadow:0 4px 16px rgba(0,0,0,.3);
-}
-.ctrl-sec-title{
-  font-size:12px;font-weight:700;
-  color:var(--pbi-muted);letter-spacing:1.5px;
-  padding-bottom:8px;
-  border-bottom:1px solid var(--pbi-border);
-}
-.c-card{
-  display:grid;
-  grid-template-columns:32px 1fr 44px;
-  align-items:center;gap:8px;
-  background:rgba(255,255,255,.03);
-  border:1px solid var(--pbi-border);
-  border-radius:10px;
-  padding:10px 12px;
-  cursor:pointer;
-  transition:background .2s,border-color .2s,box-shadow .2s;
-  position:relative;
-  overflow:hidden;
-}
-.c-card::before{
-  content:'';position:absolute;left:0;top:0;width:3px;height:100%;
-  background:var(--state-col);border-radius:3px 0 0 3px;
-}
-.c-card.on{
-  background:rgba(0,230,118,.07);
-  border-color:rgba(0,230,118,.25);
-  box-shadow:0 0 16px rgba(0,230,118,.1);
-}
-.c-card:hover{background:rgba(255,255,255,.07);}
-.c-icon{font-size:18px;}
-.c-name{font-size:12px;font-weight:600;color:var(--pbi-white);}
-.c-toggle{
-  width:38px;height:20px;
-  background:var(--off);
-  border-radius:999px;
-  position:relative;
-  transition:background .25s;
-  justify-self:end;
-}
-.c-toggle::after{
-  content:'';
-  width:14px;height:14px;
-  background:#fff;border-radius:50%;
-  position:absolute;top:3px;left:3px;
-  transition:transform .25s;
-  box-shadow:0 1px 4px rgba(0,0,0,.4);
-}
-.c-card.on .c-toggle{background:var(--on);}
-.c-card.on .c-toggle::after{transform:translateX(18px);}
-.c-status{
-  grid-column:1/-1;
-  font-size:10px;font-weight:700;
-  letter-spacing:1px;
-  color:var(--state-col);
-  text-align:right;
-}
-
-/* ─── CHART COLUMN ───────────────────────────────────────── */
-.chart-col{
-  display:flex;flex-direction:column;gap:14px;
-}
-.chart-panel{
-  background:var(--pbi-panel);
-  border:1px solid var(--pbi-border);
-  border-radius:14px;
-  padding:16px;
-  flex:1;
-  box-shadow:0 4px 16px rgba(0,0,0,.3);
-  display:flex;flex-direction:column;
-}
-.chart-head{
-  display:flex;align-items:center;justify-content:space-between;
-  margin-bottom:12px;flex-wrap:wrap;gap:8px;
-}
-.chart-ttl{
-  display:flex;align-items:center;gap:8px;
-  font-size:13px;font-weight:700;color:var(--pbi-white);
-}
-.chart-icon{margin-top:1px;}
-.legends{display:flex;flex-wrap:wrap;gap:10px;}
-.leg{display:flex;align-items:center;gap:5px;font-size:11px;color:var(--pbi-muted);}
-.leg-dot{width:8px;height:8px;border-radius:50%;}
-.chart-body{position:relative;flex:1;min-height:150px;}
-.chart-body canvas{width:100%!important;height:100%!important;}
-
-/* ─── LOG PANEL ──────────────────────────────────────────── */
-.log-panel{
-  grid-column:1/-1;
-  background:var(--pbi-panel);
-  border:1px solid var(--pbi-border);
-  border-radius:14px;
-  padding:16px;
-  box-shadow:0 4px 16px rgba(0,0,0,.3);
-}
-.log-head{
-  display:flex;align-items:center;justify-content:space-between;
-  margin-bottom:12px;
-}
-.log-ttl{font-size:13px;font-weight:700;}
-.log-cnt{font-size:11px;color:var(--pbi-muted);}
-.log-scroll{max-height:220px;overflow-y:auto;}
-.log-scroll::-webkit-scrollbar{width:4px;}
-.log-scroll::-webkit-scrollbar-thumb{background:#333;border-radius:4px;}
-table{width:100%;border-collapse:collapse;font-size:11px;}
-thead th{
-  background:#1e1e2e;
-  padding:8px 10px;
-  text-align:left;font-weight:700;
-  position:sticky;top:0;z-index:1;
-  border-bottom:1px solid var(--pbi-border);
-  font-size:12px;
-}
-tbody tr{border-bottom:1px solid rgba(255,255,255,.04);transition:background .15s;}
-tbody tr:hover{background:rgba(255,255,255,.04);}
-tbody td{padding:7px 10px;font-variant-numeric:tabular-nums;font-size:11px;}
-
-/* ─── BUTTON ─────────────────────────────────────────────── */
-.btn{
-  cursor:pointer;border:none;border-radius:6px;
-  font-family:inherit;letter-spacing:.3px;transition:opacity .2s;
-}
-.btn:hover{opacity:.8;}
-
-/* ─── RESPONSIVE ─────────────────────────────────────────── */
-@media(max-width:1200px){
-  .canvas{grid-template-columns:1fr;}
-  .ctrl-col{grid-row:auto;}
-  .sensor-row{grid-template-columns:repeat(3,1fr);}
-}
-@media(max-width:700px){
-  .sensor-row{grid-template-columns:repeat(2,1fr);}
-  .canvas{padding:10px;gap:10px;}
-}
-</style>
+<link rel="stylesheet" href="assets/css/style.css">
 </head>
 <body>
+
 
 <!-- RIBBON -->
 <div class="ribbon">
@@ -353,8 +42,7 @@ tbody td{padding:7px 10px;font-variant-numeric:tabular-nums;font-size:11px;}
   <!-- SENSOR ROW -->
   <div class="sensor-row">
     <div class="s-card" style="--accent:var(--t1)">
-      <div class="s-bar"></div>
-      <div class="s-inner">
+      <div class="s-bar"></div><div class="s-inner">
         <div class="s-tag">T1</div>
         <div class="s-name">Storage Temperature</div>
         <div class="s-val" id="v-T1">--.-</div>
@@ -362,10 +50,8 @@ tbody td{padding:7px 10px;font-variant-numeric:tabular-nums;font-size:11px;}
         <div class="s-delta d-fl" id="d-T1">—</div>
       </div>
     </div>
-
     <div class="s-card" style="--accent:var(--t2)">
-      <div class="s-bar"></div>
-      <div class="s-inner">
+      <div class="s-bar"></div><div class="s-inner">
         <div class="s-tag">T2</div>
         <div class="s-name">Inlet Temperature</div>
         <div class="s-val" id="v-T2">--.-</div>
@@ -373,10 +59,8 @@ tbody td{padding:7px 10px;font-variant-numeric:tabular-nums;font-size:11px;}
         <div class="s-delta d-fl" id="d-T2">—</div>
       </div>
     </div>
-
     <div class="s-card" style="--accent:var(--t3)">
-      <div class="s-bar"></div>
-      <div class="s-inner">
+      <div class="s-bar"></div><div class="s-inner">
         <div class="s-tag">T3</div>
         <div class="s-name">Absorber Plate</div>
         <div class="s-val" id="v-T3">--.-</div>
@@ -384,10 +68,8 @@ tbody td{padding:7px 10px;font-variant-numeric:tabular-nums;font-size:11px;}
         <div class="s-delta d-fl" id="d-T3">—</div>
       </div>
     </div>
-
     <div class="s-card" style="--accent:var(--t4)">
-      <div class="s-bar"></div>
-      <div class="s-inner">
+      <div class="s-bar"></div><div class="s-inner">
         <div class="s-tag">T4</div>
         <div class="s-name">Outlet Temperature</div>
         <div class="s-val" id="v-T4">--.-</div>
@@ -395,10 +77,8 @@ tbody td{padding:7px 10px;font-variant-numeric:tabular-nums;font-size:11px;}
         <div class="s-delta d-fl" id="d-T4">—</div>
       </div>
     </div>
-
     <div class="s-card" style="--accent:var(--f1)">
-      <div class="s-bar"></div>
-      <div class="s-inner">
+      <div class="s-bar"></div><div class="s-inner">
         <div class="s-tag">F1</div>
         <div class="s-name">Inlet Flow Rate</div>
         <div class="s-val" id="v-F1">-.-</div>
@@ -406,10 +86,8 @@ tbody td{padding:7px 10px;font-variant-numeric:tabular-nums;font-size:11px;}
         <div class="s-delta d-fl" id="d-F1">—</div>
       </div>
     </div>
-
     <div class="s-card" style="--accent:var(--f2)">
-      <div class="s-bar"></div>
-      <div class="s-inner">
+      <div class="s-bar"></div><div class="s-inner">
         <div class="s-tag">F2</div>
         <div class="s-name">Outlet Flow Rate</div>
         <div class="s-val" id="v-F2">-.-</div>
@@ -422,25 +100,25 @@ tbody td{padding:7px 10px;font-variant-numeric:tabular-nums;font-size:11px;}
   <!-- CONTROL COLUMN -->
   <div class="ctrl-col">
     <div class="ctrl-sec-title">⬡ Controls</div>
-    <div class="c-card off" id="c-power" style="--state-col:var(--off)" onclick="toggleCtrl('power')">
+    <div class="c-card off" id="c-power" style="--state-col:var(--off)">
       <div class="c-icon">⚡</div>
       <div class="c-name">Power Supply</div>
       <div class="c-toggle"></div>
       <div class="c-status" id="s-power">OFF</div>
     </div>
-    <div class="c-card off" id="c-sol" style="--state-col:var(--off)" onclick="toggleCtrl('sol')">
+    <div class="c-card off" id="c-sol" style="--state-col:var(--off)">
       <div class="c-icon">🔧</div>
       <div class="c-name">Solenoid Valve</div>
       <div class="c-toggle"></div>
       <div class="c-status" id="s-sol">OFF</div>
     </div>
-    <div class="c-card off" id="c-pump" style="--state-col:var(--off)" onclick="toggleCtrl('pump')">
+    <div class="c-card off" id="c-pump" style="--state-col:var(--off)">
       <div class="c-icon">💧</div>
       <div class="c-name">Pump</div>
       <div class="c-toggle"></div>
       <div class="c-status" id="s-pump">OFF</div>
     </div>
-    <div class="c-card off" id="c-lamp" style="--state-col:var(--off)" onclick="toggleCtrl('lamp')">
+    <div class="c-card off" id="c-lamp" style="--state-col:var(--off)">
       <div class="c-icon">💡</div>
       <div class="c-name">Artificial Lamp</div>
       <div class="c-toggle"></div>
@@ -452,14 +130,7 @@ tbody td{padding:7px 10px;font-variant-numeric:tabular-nums;font-size:11px;}
   <div class="chart-col">
     <div class="chart-panel">
       <div class="chart-head">
-        <div class="chart-ttl">
-          <span class="chart-icon" style="display:flex;color:var(--t4)">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M14 14.76V3.5a2.5 2.5 0 0 0-5 0v11.26a4.5 4.5 0 1 0 5 0z"></path>
-            </svg>
-          </span>
-          Temperature Sensors (T1–T4)
-        </div>
+        <div class="chart-ttl"><span class="chart-icon" style="display:flex;color:var(--t4)"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 14.76V3.5a2.5 2.5 0 0 0-5 0v11.26a4.5 4.5 0 1 0 5 0z"></path></svg></span> Temperature Sensors (T1–T4)</div>
         <div class="legends">
           <div class="leg"><div class="leg-dot" style="background:var(--t1)"></div>T1 Storage</div>
           <div class="leg"><div class="leg-dot" style="background:var(--t2)"></div>T2 Inlet</div>
@@ -469,17 +140,9 @@ tbody td{padding:7px 10px;font-variant-numeric:tabular-nums;font-size:11px;}
       </div>
       <div class="chart-body"><canvas id="tc"></canvas></div>
     </div>
-
     <div class="chart-panel">
       <div class="chart-head">
-        <div class="chart-ttl">
-          <span class="chart-icon" style="display:flex;color:var(--f2)">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" stroke="none">
-              <path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"></path>
-            </svg>
-          </span>
-          Flow Sensors (F1–F2)
-        </div>
+        <div class="chart-ttl"><span class="chart-icon" style="display:flex;color:var(--f2)"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"></path></svg></span> Flow Sensors (F1–F2)</div>
         <div class="legends">
           <div class="leg"><div class="leg-dot" style="background:var(--f1)"></div>F1 Inlet</div>
           <div class="leg"><div class="leg-dot" style="background:var(--f2)"></div>F2 Outlet</div>
@@ -524,179 +187,7 @@ tbody td{padding:7px 10px;font-variant-numeric:tabular-nums;font-size:11px;}
 
 </div><!-- .canvas -->
 
-<script>
-/* ─── CLOCK ─────────────────────────────────────────────── */
-function updateClock(){
-  const n=new Date();
-  document.getElementById('clk-t').textContent=
-    n.toLocaleTimeString('en-GB',{hour12:false});
-  document.getElementById('clk-d').textContent=
-    n.toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'});
-}
-setInterval(updateClock,1000); updateClock();
-
-/* ─── CHART SETUP ────────────────────────────────────────── */
-Chart.defaults.color='#7a7a9a';
-Chart.defaults.font.family="'Segoe UI',system-ui,sans-serif";
-Chart.defaults.font.size=12;
-
-const MAX_PTS=30;
-const labels=[];
-
-function makeDataset(label,color){
-  return{label,data:[],borderColor:color,backgroundColor:color+'28',
-    borderWidth:2,pointRadius:2,pointHoverRadius:5,tension:.4,fill:true};
-}
-
-const tcChart=new Chart(document.getElementById('tc'),{
-  type:'line',
-  data:{labels,datasets:[
-    makeDataset('T1 Storage','#f9a825'),
-    makeDataset('T2 Inlet','#29b6f6'),
-    makeDataset('T3 Absorber','#ef5350'),
-    makeDataset('T4 Outlet','#66bb6a'),
-  ]},
-  options:{
-    responsive:true,maintainAspectRatio:false,
-    animation:{duration:400},
-    scales:{
-      x:{grid:{color:'#2a2a3a'},ticks:{maxTicksLimit:8}},
-      y:{grid:{color:'#2a2a3a'},ticks:{callback:v=>v+'°C'}}
-    },
-    plugins:{legend:{display:false},tooltip:{mode:'index',intersect:false}}
-  }
-});
-
-const fcChart=new Chart(document.getElementById('fc'),{
-  type:'line',
-  data:{labels,datasets:[
-    makeDataset('F1 Inlet','#ab47bc'),
-    makeDataset('F2 Outlet','#26c6da'),
-  ]},
-  options:{
-    responsive:true,maintainAspectRatio:false,
-    animation:{duration:400},
-    scales:{
-      x:{grid:{color:'#2a2a3a'},ticks:{maxTicksLimit:8}},
-      y:{grid:{color:'#2a2a3a'},ticks:{callback:v=>v+' L/m'}}
-    },
-    plugins:{legend:{display:false},tooltip:{mode:'index',intersect:false}}
-  }
-});
-
-/* ─── DEMO DATA SIMULATION ───────────────────────────────── */
-let prev={T1:45,T2:32,T3:70,T4:55,F1:2.1,F2:1.9};
-let logData=[];
-
-function rnd(base,range){return+(base+(Math.random()*range*2-range)).toFixed(1);}
-
-function pushPoint(){
-  const t=new Date().toLocaleTimeString('en-GB',{hour12:false});
-  const cur={
-    T1:rnd(prev.T1,.8), T2:rnd(prev.T2,.6),
-    T3:rnd(prev.T3,1.2),T4:rnd(prev.T4,.9),
-    F1:rnd(prev.F1,.15),F2:rnd(prev.F2,.15)
-  };
-  prev=cur;
-
-  // Update cards
-  ['T1','T2','T3','T4'].forEach(k=>{
-    document.getElementById('v-'+k).textContent=cur[k].toFixed(1);
-  });
-  ['F1','F2'].forEach(k=>{
-    document.getElementById('v-'+k).textContent=cur[k].toFixed(2);
-  });
-
-  // Delta badges
-  function setDelta(id,val,ref){
-    const el=document.getElementById(id);
-    const d=(val-ref).toFixed(1);
-    el.textContent=(d>=0?'▲ +':'▼ ')+d+'°';
-    el.className='s-delta '+(d>=0?'d-up':'d-dn');
-  }
-  setDelta('d-T1',cur.T1,45); setDelta('d-T2',cur.T2,32);
-  setDelta('d-T3',cur.T3,70); setDelta('d-T4',cur.T4,55);
-
-  // Charts
-  if(labels.length>=MAX_PTS){
-    labels.shift();
-    tcChart.data.datasets.forEach(ds=>ds.data.shift());
-    fcChart.data.datasets.forEach(ds=>ds.data.shift());
-  }
-  labels.push(t);
-  tcChart.data.datasets[0].data.push(cur.T1);
-  tcChart.data.datasets[1].data.push(cur.T2);
-  tcChart.data.datasets[2].data.push(cur.T3);
-  tcChart.data.datasets[3].data.push(cur.T4);
-  fcChart.data.datasets[0].data.push(cur.F1);
-  fcChart.data.datasets[1].data.push(cur.F2);
-  tcChart.update(); fcChart.update();
-
-  // Log
-  const states=getStates();
-  logData.unshift({t,cur,states});
-  if(logData.length>200)logData.pop();
-  renderLog();
-}
-
-setInterval(pushPoint,2000); pushPoint();
-
-/* ─── CONTROLS ───────────────────────────────────────────── */
-const ctrlState={power:false,sol:false,pump:false,lamp:false};
-function toggleCtrl(key){
-  ctrlState[key]=!ctrlState[key];
-  const card=document.getElementById('c-'+key);
-  const stat=document.getElementById('s-'+key);
-  if(ctrlState[key]){
-    card.classList.replace('off','on');
-    card.style.setProperty('--state-col','var(--on)');
-    stat.textContent='ON';
-  } else {
-    card.classList.replace('on','off');
-    card.style.setProperty('--state-col','var(--off)');
-    stat.textContent='OFF';
-  }
-}
-function getStates(){
-  return{
-    power:ctrlState.power?'ON':'OFF',
-    sol:ctrlState.sol?'ON':'OFF',
-    pump:ctrlState.pump?'ON':'OFF',
-    lamp:ctrlState.lamp?'ON':'OFF'
-  };
-}
-
-/* ─── LOG TABLE ──────────────────────────────────────────── */
-function renderLog(){
-  const tb=document.getElementById('log-body');
-  document.getElementById('log-cnt').textContent=logData.length+' records';
-  tb.innerHTML=logData.slice(0,100).map(r=>`
-    <tr>
-      <td>${r.t}</td>
-      <td>${r.cur.T1.toFixed(1)}</td>
-      <td>${r.cur.T2.toFixed(1)}</td>
-      <td>${r.cur.T3.toFixed(1)}</td>
-      <td>${r.cur.T4.toFixed(1)}</td>
-      <td>${r.cur.F1.toFixed(2)}</td>
-      <td>${r.cur.F2.toFixed(2)}</td>
-      <td style="color:${r.states.power==='ON'?'#00e676':'#666'}">${r.states.power}</td>
-      <td style="color:${r.states.sol==='ON'?'#00e676':'#666'}">${r.states.sol}</td>
-      <td style="color:${r.states.pump==='ON'?'#00e676':'#666'}">${r.states.pump}</td>
-      <td style="color:${r.states.lamp==='ON'?'#00e676':'#666'}">${r.states.lamp}</td>
-    </tr>`).join('');
-}
-
-/* ─── CSV DOWNLOAD ───────────────────────────────────────── */
-function downloadCSV(){
-  const hdr='Timestamp,T1,T2,T3,T4,F1,F2,Power,Solenoid,Pump,Lamp\n';
-  const rows=logData.map(r=>
-    `${r.t},${r.cur.T1},${r.cur.T2},${r.cur.T3},${r.cur.T4},${r.cur.F1},${r.cur.F2},${r.states.power},${r.states.sol},${r.states.pump},${r.states.lamp}`
-  ).join('\n');
-  const a=document.createElement('a');
-  a.href='data:text/csv;charset=utf-8,'+encodeURIComponent(hdr+rows);
-  a.download='solar_collector_log.csv';
-  a.click();
-}
-</script>
+<script src="assets/js/app.js"></script>
 </body>
 </html>
+
