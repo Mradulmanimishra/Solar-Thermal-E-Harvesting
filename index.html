@@ -32,10 +32,11 @@ body{
   font-family:'Segoe UI',system-ui,sans-serif;
   background:var(--pbi-bg);
   color:var(--pbi-white);
-  height:100vh;
+  min-height:100vh;
+  height:auto;
   display:flex;
   flex-direction:column;
-  overflow:hidden;
+  overflow:auto;
 }
  
 /* ── TOP BAR (Power BI ribbon style) ── */
@@ -87,12 +88,15 @@ body{
  
 /* ── CANVAS ── */
 .canvas{
-  flex:1;
+  flex:1 0 auto;
   display:grid;
   grid-template-rows:auto 1fr auto;
   grid-template-columns:176px 1fr;
   gap:0;
-  overflow:hidden;
+  overflow:auto;
+  min-height:calc(100vh - 68px);
+  min-width:1240px;
+  align-content:start;
   padding:10px;
   gap:8px;
 }
@@ -101,7 +105,7 @@ body{
 .sensor-row{
   grid-column:1/-1;
   display:grid;
-  grid-template-columns:repeat(6,1fr);
+  grid-template-columns:repeat(6,minmax(150px,1fr));
   gap:8px;
 }
 .s-card{
@@ -116,8 +120,8 @@ body{
 .s-card:hover{box-shadow:0 0 0 1px var(--accent),0 4px 20px rgba(0,0,0,.4)}
 .s-bar{height:3px;background:var(--accent);width:100%}
 .s-inner{padding:10px 12px 10px}
-.s-tag{font-size:14px;font-weight:800;color:var(--accent);letter-spacing:.08em;text-shadow:0 0 8px var(--accent)}
-.s-name{font-size:10px;font-weight:600;color:#d0dce8;margin:2px 0 8px;letter-spacing:.02em}
+.s-tag{font-size:20px;font-weight:800;color:var(--accent);letter-spacing:.08em;text-shadow:0 0 8px var(--accent)}
+.s-name{font-size:15px;font-weight:600;color:#d0dce8;margin:2px 0 8px;letter-spacing:.02em}
 .s-val{
   font-size:26px;font-weight:700;
   color:var(--accent);line-height:1;
@@ -170,7 +174,7 @@ body{
 }
 .c-icon{font-size:18px;line-height:1}
 .c-name{
-  font-size:10px;font-weight:700;
+  font-size:15px;font-weight:700;
   color:var(--pbi-white);text-align:center;
 }
 .c-status{
@@ -354,7 +358,7 @@ td.ts{color:var(--pbi-grey);font-size:9px}
 /* ── 6 INDIVIDUAL CHART PANELS ── */
 .charts-grid{
   display:grid;
-  grid-template-columns:repeat(3,1fr);
+  grid-template-columns:repeat(3,minmax(280px,1fr));
   grid-template-rows:repeat(2,1fr);
   gap:8px;
   height:100%;
@@ -652,7 +656,9 @@ function tick(){
 setInterval(tick,1000);tick();
  
 // ── CHART SETUP ───────────────────────────────
-const MAX_PTS=60;
+const MAX_PTS=500;
+const MINOR_TICK_INTERVAL=5;
+const MAJOR_TIME_TICKS=[30,60,90,120,180,210,240,270,300,330,360,400,450,500];
 const tLabels=[];
 const td={T1:[],T2:[],T3:[],T4:[]};
 const fd={F1:[],F2:[]};
@@ -661,6 +667,9 @@ const logs=[];
 const SOLAR_THERMAL_DB_URL='https://solar-thermal-e-harvesting-default-rtdb.firebaseio.com';
 const RELAY3_PATH='/relays_state/relay3';
 let relay3PollTimer=null;
+let liveDataPollTimer=null;
+let demoTimer=null;
+let activeFirebaseListeners=[];
  
 const axCfg={
   grid:{color:'rgba(255,255,255,0.05)',drawBorder:false},
@@ -702,11 +711,10 @@ function ds(label,color,data){
 }
  
 // ── 6 INDIVIDUAL CHARTS — white bg, black labels ──
-function mkSingleChart(id, color, label, yLabel, yMin, yMax) {
+function mkSingleChart(id, color, label, yLabel, yMin, yMax, yStep=null) {
   return new Chart(document.getElementById(id).getContext('2d'), {
     type: 'line',
     data: {
-      labels: tLabels,
       datasets: [{
         data: [],
         borderColor: color,
@@ -736,15 +744,63 @@ function mkSingleChart(id, color, label, yLabel, yMin, yMax) {
       },
       scales: {
         x: {
-          grid: { color: '#e8e8e8' },
-          ticks: { color: '#333', font: { size: 9 }, maxRotation: 0, maxTicksLimit: 6 },
-          border: { color: '#ccc' }
+          type: 'linear',
+          offset: false,
+          min: 0,
+          max: MINOR_TICK_INTERVAL,
+          grid: { 
+            color: (ctx) => {
+              const minute = Number(ctx.tick?.value);
+              return Number.isFinite(minute) && minute % MINOR_TICK_INTERVAL === 0
+                ? 'rgba(0, 0, 0, 0.14)'
+                : 'rgba(0, 0, 0, 0)';
+            },
+            drawBorder: true,
+            drawOnChartArea: true,
+            drawTicks: true,
+            lineWidth: (ctx) => {
+              const minute = Number(ctx.tick?.value);
+              return MAJOR_TIME_TICKS.includes(minute) ? 1.1 : 0.8;
+            }
+          },
+          ticks: { 
+            color: '#333', 
+            autoSkip: false,
+            font: { family: 'Segoe UI', size: 10, weight: 'bold' }, 
+            maxRotation: 0, 
+            padding: 10,
+            stepSize: MINOR_TICK_INTERVAL,
+            callback: function(value) {
+              const minute = Number(value);
+              return MAJOR_TIME_TICKS.includes(minute) ? minute + ' min' : '';
+            }
+          },
+          border: { color: '#666', width: 1.5 },
+          title: {
+            display: true,
+            text: 'Time (minutes)',
+            color: '#555',
+            padding: { top: 8 },
+            font: { family: 'Segoe UI', size: 10, weight: 'bold' }
+          }
         },
         y: {
           min: yMin, max: yMax,
           grid: { color: '#e8e8e8' },
-          ticks: { color: '#333', font: { size: 9 } },
-          border: { color: '#ccc' },
+          ticks: {
+            color: '#333',
+            font: { family: 'Segoe UI', size: 9 },
+            ...(yStep !== null ? {
+              autoSkip: false,
+              includeBounds: true,
+              precision: 1,
+              stepSize: yStep,
+              callback: function(value) {
+                return Number.isInteger(value) ? String(value) : value.toFixed(1);
+              }
+            } : {})
+          },
+          border: { color: '#999', width: 1.5 },
           title: { display: true, text: yLabel, color: '#555', font: { size: 9 } }
         }
       }
@@ -753,12 +809,12 @@ function mkSingleChart(id, color, label, yLabel, yMin, yMax) {
 }
  
 // Create 6 charts — white background set via canvas parent CSS
-const chartT1 = mkSingleChart('ch_T1', '#00b4cc', 'T1 Storage',   '°C',    0,  100);
-const chartT2 = mkSingleChart('ch_T2', '#00a86b', 'T2 Inlet',     '°C',    0,  100);
-const chartT3 = mkSingleChart('ch_T3', '#cc8800', 'T3 Absorber',  '°C',    0,  100);
-const chartT4 = mkSingleChart('ch_T4', '#cc3070', 'T4 Outlet',    '°C',    0,  100);
-const chartF1 = mkSingleChart('ch_F1', '#7c52fa', 'F1 Inlet',     'L/min', 0,    5);
-const chartF2 = mkSingleChart('ch_F2', '#0080cc', 'F2 Outlet',    'L/min', 0,    5);
+const chartT1 = mkSingleChart('ch_T1', '#00b4cc', 'T1 Storage',   '°C',    20, 80);
+const chartT2 = mkSingleChart('ch_T2', '#00a86b', 'T2 Inlet',     '°C',    20, 80);
+const chartT3 = mkSingleChart('ch_T3', '#cc8800', 'T3 Absorber',  '°C',    20, 80);
+const chartT4 = mkSingleChart('ch_T4', '#cc3070', 'T4 Outlet',    '°C',    20, 80);
+const chartF1 = mkSingleChart('ch_F1', '#7c52fa', 'F1 Inlet',     'L/min', 0,    5, 0.5);
+const chartF2 = mkSingleChart('ch_F2', '#0080cc', 'F2 Outlet',    'L/min', 0,    5, 0.5);
  
 // Map: key → chart object and its private data array
 const indivCharts = {
@@ -803,17 +859,24 @@ function setSensor(id,val,isFlow){
   prev[id]=val;
 }
  
+let minuteCounter=0;
 function pushPoint(sensors){
-  const t=new Date().toLocaleTimeString('en-IN',{hour12:false});
-  tLabels.push(t);
+  const minute = minuteCounter++;
+  tLabels.push(minute);
   if(tLabels.length>MAX_PTS) tLabels.shift();
+  const windowMin = tLabels.length ? tLabels[0] : 0;
+  const windowMax = Math.max(
+    MINOR_TICK_INTERVAL,
+    Math.ceil(Math.max(minute, MINOR_TICK_INTERVAL) / MINOR_TICK_INTERVAL) * MINOR_TICK_INTERVAL
+  );
   const keys=['T1','T2','T3','T4','F1','F2'];
   keys.forEach(k=>{
     const ic=indivCharts[k];
-    ic.data.push(sensors[k]||0);
+    ic.data.push({x:minute,y:sensors[k]||0});
     if(ic.data.length>MAX_PTS) ic.data.shift();
-    ic.chart.data.labels=[...tLabels];
     ic.chart.data.datasets[0].data=[...ic.data];
+    ic.chart.options.scales.x.min=windowMin;
+    ic.chart.options.scales.x.max=windowMax;
     ic.chart.update('none');
   });
 }
@@ -842,6 +905,10 @@ function pushLog(sensors,ctrl){
  
 function downloadCSV(){
   if(!logs.length){alert('No data to download');return;}
+  const escapeCSV=value=>{
+    const str=String(value ?? '');
+    return /[",\r\n]/.test(str) ? `"${str.replace(/"/g,'""')}"` : str;
+  };
   const header = ['Timestamp','T1','T2','T3','T4','F1','F2','Power','Solenoid','Pump','Lamp'];
   const rows = logs.map(e=>[
     e.ts,
@@ -855,8 +922,8 @@ function downloadCSV(){
     e.solenoid_valve?'ON':'OFF',
     e.pump?'ON':'OFF',
     e.artificial_lamp?'ON':'OFF'
-  ].join(','));
-  const csvContent = [header.join(','), ...rows].join('\n');
+  ].map(escapeCSV).join(','));
+  const csvContent = [header.map(escapeCSV).join(','), ...rows].join('\r\n');
   const blob = new Blob([csvContent],{type:'text/csv;charset=utf-8;'});
   const url = URL.createObjectURL(blob);
   const a=document.createElement('a');
@@ -921,6 +988,42 @@ function startRelay3Polling(databaseURL=SOLAR_THERMAL_DB_URL){
 }
  
 // ── DEMO MODE ─────────────────────────────────
+function detachFirebaseListeners(){
+  activeFirebaseListeners.forEach(({ref,eventName,handler})=>ref.off(eventName,handler));
+  activeFirebaseListeners=[];
+}
+
+function attachFirebaseListener(ref,eventName,handler){
+  ref.on(eventName,handler);
+  activeFirebaseListeners.push({ref,eventName,handler});
+}
+
+function stopActiveDataMode(){
+  clearInterval(relay3PollTimer);
+  relay3PollTimer=null;
+  clearInterval(liveDataPollTimer);
+  liveDataPollTimer=null;
+  clearInterval(demoTimer);
+  demoTimer=null;
+  detachFirebaseListeners();
+}
+
+async function ensureFirebaseApp(cfg){
+  if(!firebase.apps?.length){
+    return firebase.initializeApp(cfg);
+  }
+  const app=firebase.app();
+  const options=app.options||{};
+  const sameConfig=['apiKey','authDomain','databaseURL','projectId']
+    .every(key=>(options[key]||'')===(cfg[key]||''));
+  if(sameConfig){
+    return app;
+  }
+  detachFirebaseListeners();
+  await app.delete();
+  return firebase.initializeApp(cfg);
+}
+
 const dT={T1:38,T2:32,T3:62,T4:47};
 const dF={F1:2.4,F2:2.1};
 const dC={power_supply:true,solenoid_valve:true,pump:true,artificial_lamp:false};
@@ -948,11 +1051,13 @@ function demoStep(){
 }
  
 function startDemo(){
+  stopActiveDataMode();
   document.getElementById('modal').style.display='none';
   const p=document.getElementById('pill');
   p.className='live-pill demo';
   document.getElementById('pill-txt').textContent='DEMO MODE';
-  setInterval(demoStep,2000);demoStep();
+  demoTimer=setInterval(demoStep,2000);
+  demoStep();
 }
  
 // ── FIREBASE ──────────────────────────────────
