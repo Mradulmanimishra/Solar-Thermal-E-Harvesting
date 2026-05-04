@@ -8,6 +8,7 @@
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/chartjs-plugin-zoom/2.1.0/chartjs-plugin-zoom.min.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Segoe+UI:wght@300;400;600;700&display=swap" rel="stylesheet">
  
 <style>
@@ -72,9 +73,6 @@ body{
 }
 .live-pill.live{
   background:rgba(0,230,118,.1);border-color:rgba(0,230,118,.3);color:var(--on)
-}
-.live-pill.demo{
-  background:rgba(242,200,17,.1);border-color:rgba(242,200,17,.3);color:var(--pbi-yellow)
 }
 .live-pill.dead{
   background:rgba(255,61,61,.1);border-color:rgba(255,61,61,.3);color:var(--off)
@@ -230,8 +228,10 @@ body{
   border:1px solid var(--pbi-border);
   border-radius:4px;
   display:flex;flex-direction:column;
-  max-height:190px;
+  height:190px;
+  min-height:190px;
   flex-shrink:0;
+  overflow:hidden;
 }
 .log-head{
   padding:8px 14px;
@@ -245,7 +245,7 @@ body{
 }
 .log-ttl::before{content:'▸';color:#83c5be}
 .log-cnt{font-size:10px;color:var(--pbi-grey)}
-.log-scroll{overflow-y:auto;flex:1}
+.log-scroll{overflow-y:auto;flex:1;min-height:0}
 .log-scroll::-webkit-scrollbar{width:3px}
 .log-scroll::-webkit-scrollbar-thumb{background:var(--pbi-border);border-radius:2px}
 table{width:100%;border-collapse:collapse;font-size:10px}
@@ -321,8 +321,6 @@ td.ts{color:var(--pbi-grey);font-size:9px}
 }
 .btn-pbi{background:#006d77;color:#ffffff}
 .btn-pbi:hover{background:#00858f;box-shadow:0 0 18px rgba(0,109,119,.5)}
-.btn-demo{background:transparent;border:1px solid var(--pbi-border);color:var(--pbi-grey)}
-.btn-demo:hover{background:rgba(255,255,255,.06);color:#ffffff}
  
 /* ── PRESSURE METER (Pump block) ── */
 #c-pump{flex-direction:row;align-items:stretch;padding:0;gap:0;}
@@ -380,7 +378,18 @@ td.ts{color:var(--pbi-grey);font-size:9px}
 .ch-tag{font-size:13px;font-weight:800;letter-spacing:.06em}
 .ch-name{font-size:10px;font-weight:600;color:#333;flex:1}
 .ch-unit{font-size:9px;color:#777;font-weight:600}
-.chart-body-sm{flex:1;padding:6px;position:relative;min-height:0}
+.chart-body-sm{
+  flex:1;
+  padding:6px;
+  position:relative;
+  min-height:0;
+  overflow:hidden;
+  cursor:grab;
+}
+.chart-body-sm.dragging{
+  cursor:grabbing;
+  user-select:none;
+}
 </style>
 </head>
 <body>
@@ -393,8 +402,7 @@ td.ts{color:var(--pbi-grey);font-size:9px}
       <div class="m-title">Connect Data Source</div>
     </div>
     <div class="m-sub">
-      Enter your Firebase Realtime Database config to stream live sensor data.<br>
-      Or click <strong>Demo Mode</strong> to run with simulated data instantly.
+      Enter your Firebase Realtime Database config to stream live sensor data.
     </div>
     <div class="field">
       <label>API Key</label>
@@ -418,7 +426,6 @@ td.ts{color:var(--pbi-grey);font-size:9px}
       <code>/logs</code> (array)
     </div>
     <div class="m-btns">
-      <button class="btn btn-demo" onclick="startDemo()">⚡ Demo Mode</button>
       <button class="btn btn-pbi" onclick="connectFB()">🔗 Connect Firebase</button>
     </div>
   </div>
@@ -434,8 +441,8 @@ td.ts{color:var(--pbi-grey);font-size:9px}
     </div>
   </div>
   <div class="ribbon-right">
-    <div class="live-pill demo" id="pill">
-      <div class="dot"></div><span id="pill-txt">DEMO</span>
+    <div class="live-pill dead" id="pill">
+      <div class="dot"></div><span id="pill-txt">CONNECTING</span>
     </div>
     <div class="clock-wrap">
       <div class="clock-time" id="clk-t">--:--:--</div>
@@ -657,58 +664,19 @@ setInterval(tick,1000);tick();
  
 // ── CHART SETUP ───────────────────────────────
 const MAX_PTS=500;
-const MINOR_TICK_INTERVAL=5;
-const MAJOR_TIME_TICKS=[30,60,90,120,180,210,240,270,300,330,360,400,450,500];
+const X_AXIS_MIN=0;
+const X_AXIS_MAX=300;
+const X_TICK_STEP=10;
+const INITIAL_X_WINDOW=10;
 const tLabels=[];
-const td={T1:[],T2:[],T3:[],T4:[]};
-const fd={F1:[],F2:[]};
 const prev={T1:null,T2:null,T3:null,T4:null,F1:null,F2:null};
 const logs=[];
 const SOLAR_THERMAL_DB_URL='https://solar-thermal-e-harvesting-default-rtdb.firebaseio.com';
 const RELAY3_PATH='/relays_state/relay3';
 let relay3PollTimer=null;
 let liveDataPollTimer=null;
-let demoTimer=null;
 let activeFirebaseListeners=[];
- 
-const axCfg={
-  grid:{color:'rgba(255,255,255,0.05)',drawBorder:false},
-  ticks:{color:'#555',font:{family:'Segoe UI',size:9}},
-  border:{display:false}
-};
-const plugCfg={
-  legend:{display:false},
-  tooltip:{
-    backgroundColor:'rgba(30,30,30,.95)',
-    borderColor:'rgba(131,197,190,.35)',borderWidth:1,
-    titleColor:'#888',bodyColor:'#f0f0f0',
-    padding:9,
-    titleFont:{family:'Segoe UI',size:9},
-    bodyFont:{family:'Segoe UI',size:11,weight:'600'}
-  }
-};
- 
-function mkChart(id,datasets,yLabel){
-  return new Chart(document.getElementById(id).getContext('2d'),{
-    type:'line',
-    data:{labels:tLabels,datasets},
-    options:{
-      responsive:true,maintainAspectRatio:false,
-      animation:{duration:250},
-      interaction:{mode:'index',intersect:false},
-      plugins:plugCfg,
-      scales:{
-        x:{...axCfg,ticks:{...axCfg.ticks,maxRotation:0,maxTicksLimit:8}},
-        y:{...axCfg,title:{display:true,text:yLabel,color:'#555',font:{family:'Segoe UI',size:9}}}
-      }
-    }
-  });
-}
- 
-function ds(label,color,data){
-  return{label,data,borderColor:color,backgroundColor:color+'18',
-         borderWidth:1.8,pointRadius:0,pointHoverRadius:3,tension:0.4,fill:false};
-}
+let isZoomed=false; // Track if user has zoomed/panned (pauses auto-scroll)
  
 // ── 6 INDIVIDUAL CHARTS — white bg, black labels ──
 function mkSingleChart(id, color, label, yLabel, yMin, yMax, yStep=null) {
@@ -732,6 +700,34 @@ function mkSingleChart(id, color, label, yLabel, yMin, yMax, yStep=null) {
       animation: { duration: 200 },
       plugins: {
         legend: { display: false },
+        zoom: {
+          pan: {
+            enabled: true,
+            mode: 'x',
+            modifierKey: null,
+            onPan: ({chart}) => {
+              isZoomed = true;
+            }
+          },
+          zoom: {
+            wheel: {
+              enabled: true,
+              speed: 0.1,
+              modifierKey: 'ctrl',
+            },
+            pinch: {
+              enabled: false
+            },
+            mode: 'x',
+            onZoom: ({chart}) => {
+              isZoomed = true;
+            }
+          },
+          limits: {
+            x: {min: X_AXIS_MIN, max: INITIAL_X_WINDOW},
+            y: {min: 'original', max: 'original'}
+          }
+        },
         tooltip: {
           backgroundColor: '#fff',
           borderColor: color,
@@ -746,22 +742,14 @@ function mkSingleChart(id, color, label, yLabel, yMin, yMax, yStep=null) {
         x: {
           type: 'linear',
           offset: false,
-          min: 0,
-          max: MINOR_TICK_INTERVAL,
+          min: X_AXIS_MIN,
+          max: INITIAL_X_WINDOW,
           grid: { 
-            color: (ctx) => {
-              const minute = Number(ctx.tick?.value);
-              return Number.isFinite(minute) && minute % MINOR_TICK_INTERVAL === 0
-                ? 'rgba(0, 0, 0, 0.14)'
-                : 'rgba(0, 0, 0, 0)';
-            },
+            color: 'rgba(0, 0, 0, 0.12)',
             drawBorder: true,
             drawOnChartArea: true,
             drawTicks: true,
-            lineWidth: (ctx) => {
-              const minute = Number(ctx.tick?.value);
-              return MAJOR_TIME_TICKS.includes(minute) ? 1.1 : 0.8;
-            }
+            lineWidth: 0.8
           },
           ticks: { 
             color: '#333', 
@@ -769,10 +757,10 @@ function mkSingleChart(id, color, label, yLabel, yMin, yMax, yStep=null) {
             font: { family: 'Segoe UI', size: 10, weight: 'bold' }, 
             maxRotation: 0, 
             padding: 10,
-            stepSize: MINOR_TICK_INTERVAL,
+            stepSize: X_TICK_STEP,
             callback: function(value) {
               const minute = Number(value);
-              return MAJOR_TIME_TICKS.includes(minute) ? minute + ' min' : '';
+              return minute % X_TICK_STEP === 0 && minute >= X_AXIS_MIN ? minute + ' min' : '';
             }
           },
           border: { color: '#666', width: 1.5 },
@@ -826,6 +814,21 @@ const indivCharts = {
   F2: { chart: chartF2, data: [] },
 };
  
+// ── DATA MANAGEMENT ───────────────────────────
+function clearAllData(){
+  tLabels.length=0;
+  Object.values(indivCharts).forEach(ic=>ic.data.length=0);
+  logs.length=0;
+  Object.values(prev).forEach((k,i)=>prev[Object.keys(prev)[i]]=null);
+  minuteCounter=0;
+  isZoomed=false;
+  Object.values(indivCharts).forEach(ic=>ic.chart.data.datasets[0].data=[]);
+  document.getElementById('log-body').innerHTML='<tr><td colspan="11" style="text-align:center;color:#555;padding:16px">Waiting for data…</td></tr>';
+  document.getElementById('log-cnt').textContent='0 records';
+  applyLiveWindowBounds();
+  Object.values(indivCharts).forEach(ic=>ic.chart.update('none'));
+}
+
 // ── UI HELPERS ────────────────────────────────
 function setCtrl(key,state,level=null){
   const card=document.getElementById('c-'+key);
@@ -860,25 +863,56 @@ function setSensor(id,val,isFlow){
 }
  
 let minuteCounter=0;
+
+function getLiveWindowBounds(latestMinute=tLabels.length?tLabels[tLabels.length-1]:0){
+  const roundedMax=Math.max(INITIAL_X_WINDOW,Math.ceil((latestMinute+1)/X_TICK_STEP)*X_TICK_STEP);
+  if(roundedMax<=X_AXIS_MAX){
+    return {min:X_AXIS_MIN,max:roundedMax};
+  }
+  return {min:roundedMax-X_AXIS_MAX,max:roundedMax};
+}
+
+function applyLiveWindowBounds(){
+  const bounds=getLiveWindowBounds();
+  Object.values(indivCharts).forEach(ic=>{
+    ic.chart.options.scales.x.min = bounds.min;
+    ic.chart.options.scales.x.max = bounds.max;
+    ic.chart.options.plugins.zoom.limits.x.min = X_AXIS_MIN;
+    ic.chart.options.plugins.zoom.limits.x.max = bounds.max;
+  });
+}
+
+function resetChartZoom(){
+  isZoomed = false;
+  applyLiveWindowBounds();
+  Object.values(indivCharts).forEach(ic=>{
+    ic.chart.resetZoom('none');
+    ic.chart.update('none');
+  });
+}
+
 function pushPoint(sensors){
   const minute = minuteCounter++;
   tLabels.push(minute);
   if(tLabels.length>MAX_PTS) tLabels.shift();
-  const windowMin = tLabels.length ? tLabels[0] : 0;
-  const windowMax = Math.max(
-    MINOR_TICK_INTERVAL,
-    Math.ceil(Math.max(minute, MINOR_TICK_INTERVAL) / MINOR_TICK_INTERVAL) * MINOR_TICK_INTERVAL
-  );
+  
   const keys=['T1','T2','T3','T4','F1','F2'];
   keys.forEach(k=>{
     const ic=indivCharts[k];
     ic.data.push({x:minute,y:sensors[k]||0});
     if(ic.data.length>MAX_PTS) ic.data.shift();
     ic.chart.data.datasets[0].data=[...ic.data];
-    ic.chart.options.scales.x.min=windowMin;
-    ic.chart.options.scales.x.max=windowMax;
-    ic.chart.update('none');
   });
+  if(!isZoomed){
+    applyLiveWindowBounds();
+  }else{
+    const latestMax=Math.max(INITIAL_X_WINDOW,Math.ceil((minute+1)/X_TICK_STEP)*X_TICK_STEP);
+    Object.values(indivCharts).forEach(ic=>{
+      ic.chart.options.plugins.zoom.limits.x.min = X_AXIS_MIN;
+      ic.chart.options.plugins.zoom.limits.x.max = latestMax;
+    });
+  }
+  Object.values(indivCharts).forEach(ic=>ic.chart.update('none'));
 }
  
 function pushLog(sensors,ctrl){
@@ -987,7 +1021,7 @@ function startRelay3Polling(databaseURL=SOLAR_THERMAL_DB_URL){
   },3000);
 }
  
-// ── DEMO MODE ─────────────────────────────────
+// ── DATA SOURCE MODE ──────────────────────────
 function detachFirebaseListeners(){
   activeFirebaseListeners.forEach(({ref,eventName,handler})=>ref.off(eventName,handler));
   activeFirebaseListeners=[];
@@ -1003,9 +1037,8 @@ function stopActiveDataMode(){
   relay3PollTimer=null;
   clearInterval(liveDataPollTimer);
   liveDataPollTimer=null;
-  clearInterval(demoTimer);
-  demoTimer=null;
   detachFirebaseListeners();
+  clearInterval(_pInterval);
 }
 
 async function ensureFirebaseApp(cfg){
@@ -1024,42 +1057,6 @@ async function ensureFirebaseApp(cfg){
   return firebase.initializeApp(cfg);
 }
 
-const dT={T1:38,T2:32,T3:62,T4:47};
-const dF={F1:2.4,F2:2.1};
-const dC={power_supply:true,solenoid_valve:true,pump:true,artificial_lamp:false};
-let tick2=0;
- 
-function demoStep(){
-  dT.T1+=((Math.random()-.44)*.4);
-  dT.T2+=((Math.random()-.46)*.5);
-  dT.T3+=((Math.random()-.45)*.7);
-  dT.T4+=((Math.random()-.45)*.45);
-  dF.F1=Math.max(.5,Math.min(5,dF.F1+(Math.random()-.5)*.05));
-  dF.F2=Math.max(.3,Math.min(4.8,dF.F2+(Math.random()-.5)*.04));
-  for(const k in dT)dT[k]=Math.max(25,Math.min(95,dT[k]));
-  if(++tick2%25===0)dC.artificial_lamp=!dC.artificial_lamp;
- 
-  const sensors={...dT,...dF};
-  ['T1','T2','T3','T4'].forEach(k=>setSensor(k,sensors[k],false));
-  ['F1','F2'].forEach(k=>setSensor(k,sensors[k],true));
-  setCtrl('power',dC.power_supply);
-  setCtrl('sol',dC.solenoid_valve);
-  setCtrl('pump',dC.pump,dC.pump?55:0);
-  setCtrl('lamp',dC.artificial_lamp);
-  pushPoint(sensors);
-  if(tick2%5===0)pushLog(sensors,{...dC});
-}
- 
-function startDemo(){
-  stopActiveDataMode();
-  document.getElementById('modal').style.display='none';
-  const p=document.getElementById('pill');
-  p.className='live-pill demo';
-  document.getElementById('pill-txt').textContent='DEMO MODE';
-  demoTimer=setInterval(demoStep,2000);
-  demoStep();
-}
- 
 // ── FIREBASE ──────────────────────────────────
 function connectFB(){
   const cfg={
@@ -1070,6 +1067,8 @@ function connectFB(){
   };
   if(!cfg.databaseURL){alert('Database URL is required');return;}
   try{
+    stopActiveDataMode();
+    clearAllData();
     firebase.initializeApp(cfg);
     const db=firebase.database();
     document.getElementById('modal').style.display='none';
@@ -1116,7 +1115,8 @@ async function connectSolarThermalDB(){
     p.className='live-pill live';
     document.getElementById('pill-txt').textContent='LIVE - LOADING...';
     startRelay3Polling(FIREBASE_URL);
-    const resp=await fetch(FIREBASE_URL+'/logs.json');
+    const resp=await fetch(FIREBASE_URL+'/logs.json',{cache:'no-store'});
+    if(!resp.ok) throw new Error(`HTTP ${resp.status}`);
     const logsData=await resp.json();
     if(logsData && typeof logsData==='object'){
       const sortedLogs=Object.values(logsData)
@@ -1166,9 +1166,9 @@ async function connectSolarThermalDB(){
       }
     }
     document.getElementById('pill-txt').textContent='LIVE';
-    setInterval(async()=>{
+    liveDataPollTimer=setInterval(async()=>{
       try{
-        const resp=await fetch(FIREBASE_URL+'/logs.json');
+        const resp=await fetch(FIREBASE_URL+'/logs.json',{cache:'no-store'});
         const newLogs=await resp.json();
         if(newLogs&&Object.keys(newLogs).length>logs.length){
           const latestKey=Object.keys(newLogs)[Object.keys(newLogs).length-1];
@@ -1200,11 +1200,53 @@ async function connectSolarThermalDB(){
   }catch(e){
     console.error('Firebase error:',e.message);
     document.getElementById('pill-txt').textContent='ERROR';
+    document.getElementById('pill').className='live-pill dead';
+    document.getElementById('modal').style.display='flex';
   }
 }
- 
+
 // Auto-connect on page load
 connectSolarThermalDB();
+
+// ── WINDOW RESIZE HANDLER ────────────────────
+window.addEventListener('resize',()=>{
+  Object.values(indivCharts).forEach(ic=>ic.chart.resize());
+});
+
+// ── KEYBOARD SHORTCUTS ───────────────────────
+document.addEventListener('keydown',(e)=>{
+  if(e.key.toLowerCase()==='r'&&!e.ctrlKey&&!e.altKey){
+    resetChartZoom();
+    console.log('Charts reset to the latest live data');
+  }
+});
+
+// Add chart interaction hints
+document.querySelectorAll('.chart-body-sm').forEach((el, idx)=>{
+  const title = ['T1 Storage', 'T2 Inlet', 'T3 Absorber', 'T4 Outlet', 'F1 Inlet', 'F2 Outlet'][idx];
+  el.title = `${title}\n\nDrag left/right to pan through history\nUse the mouse wheel to pan the time axis\nCtrl+Scroll to zoom in/out\nPress R to jump back to the latest live data`;
+  el.addEventListener('wheel',(e)=>{
+    if(e.ctrlKey) return;
+    const chart=Chart.getChart(el.querySelector('canvas'));
+    if(!chart) return;
+    e.preventDefault();
+    isZoomed=true;
+    chart.pan({x:e.deltaY+e.deltaX}, undefined, 'default');
+  },{passive:false});
+  let pointerId=null;
+  el.addEventListener('pointerdown',(e)=>{
+    if(e.pointerType==='mouse'&&e.button!==0) return;
+    pointerId=e.pointerId;
+    el.classList.add('dragging');
+  });
+  const stopDrag=(e)=>{
+    if(pointerId!==e.pointerId) return;
+    pointerId=null;
+    el.classList.remove('dragging');
+  };
+  el.addEventListener('pointerup',stopDrag);
+  el.addEventListener('pointercancel',stopDrag);
+});
  
 // ── PRESSURE METER ──────────────────────────
 let _pPct = 0, _pDir = 1, _pInterval = null;
