@@ -665,9 +665,9 @@ setInterval(tick,1000);tick();
 // ── CHART SETUP ───────────────────────────────
 const MAX_PTS=500;
 const X_AXIS_MIN=0;
-const X_AXIS_MAX=300;
-const X_TICK_STEP=10;
-const INITIAL_X_WINDOW=10;
+const X_AXIS_MAX=240;
+const X_TICK_STEP=30;
+const INITIAL_X_WINDOW=240;
 const tLabels=[];
 const prev={T1:null,T2:null,T3:null,T4:null,F1:null,F2:null};
 const logs=[];
@@ -760,7 +760,7 @@ function mkSingleChart(id, color, label, yLabel, yMin, yMax, yStep=null) {
             stepSize: X_TICK_STEP,
             callback: function(value) {
               const minute = Number(value);
-              return minute % X_TICK_STEP === 0 && minute >= X_AXIS_MIN ? minute + ' min' : '';
+              return minute % X_TICK_STEP === 0 && minute > 0 ? minute + ' min' : '';
             }
           },
           border: { color: '#666', width: 1.5 },
@@ -918,7 +918,7 @@ function pushPoint(sensors){
 function pushLog(sensors,ctrl){
   const ts=new Date().toLocaleString('en-IN');
   logs.unshift({ts,...sensors,...ctrl});
-  if(logs.length>300)logs.pop();
+  if(logs.length>5000)logs.pop();
   const tbody=document.getElementById('log-body');
   document.getElementById('log-cnt').textContent=logs.length+' records';
   tbody.innerHTML=logs.map((e,i)=>`
